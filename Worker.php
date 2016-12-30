@@ -437,18 +437,23 @@ class Worker
 
     protected static function daemonize()
     {
+        // 创建守护进程：
+        // 1.使用pcntl_fork()创建一个子进程（同时退出父进程）
+        // 2.使用posix_setsid()新创建一个session
         if (!self::$daemonize) {
             return;
         }
-        umask(0);//将默认权限的掩码修改为0，即将要创建的所有的文件你的权限都是777
+        // 修改工作目录的权限（子进程继承父进程的文件和文件权限）
+        // 将默认权限的掩码修改为0，即将要创建的所有的文件你的权限都是777
+        umask(0);
         $pid = pcntl_fork();
         if (-1 === $pid) {
             throw new Exception('fork fail');
         } elseif ($pid > 0) {
-            // 关闭父进程，让子进程成为孤儿进程被init进程收养
+            // 1.使用pcntl_fork()创建一个子进程（同时退出父进程）
             exit(0);
         }
-        // 将子进程作为进程组的leader,开启一个新的会话,脱离之前的会话和进程组。即使用户logout也不会终止
+        // 2.使用posix_setsid()新创建一个session
         if (-1 === posix_setsid()) {
             throw new Exception("setsid fail");
         }
@@ -678,7 +683,6 @@ class Worker
                         break;
                     }
                 }
-                self::log(self::STATUS_SHUTDOWN);
                 // Is still running state then fork a new worker process.
                 if (self::$_status !== self::STATUS_SHUTDOWN) {
                     self::forkWorkers();
